@@ -45,6 +45,9 @@ from sensor_msgs.msg import PointCloud2
 
 from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransformUpdate
 
+
+from nepi_api.node_if import NodeClassIF
+from nepi_api.sys_if_msg import MsgIF
 from nepi_api.sys_if_save_cfg import SaveCfgIF
 
 
@@ -103,11 +106,17 @@ class NepiFilePubPcdApp(object):
   def __init__(self):
     #### APP NODE INIT SETUP ####
     nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-    self.node_name = nepi_ros.get_node_name()
+   self.class_name = type(self).__name__
     self.base_namespace = nepi_ros.get_base_namespace()
-    nepi_msg.createMsgPublishers(self)
-    nepi_msg.publishMsgInfo(self,"Starting Initialization Processes")
-    ##############################
+    self.node_name = nepi_ros.get_node_name()
+    self.node_namespace = nepi_ros.get_node_namespace()
+
+    ##############################  
+    # Create Msg Class
+    self.msg_if = MsgIF(log_name = self.class_name)
+    self.msg_if.pub_info("Starting IF Initialization Processes")
+
+    ##############################     
     # Init Param Server
     self.initCb(do_updates = False)
 
@@ -148,7 +157,7 @@ class NepiFilePubPcdApp(object):
 
     ##############################
     ## Initiation Complete
-    nepi_msg.publishMsgInfo(self," Initialization Complete")
+    self.msg_if.pub_info(" Initialization Complete")
     self.publish_status()
     # Spin forever (until object is detected)
     rospy.spin()
@@ -248,13 +257,13 @@ class NepiFilePubPcdApp(object):
     update_status = False
     # Get settings from param server
     current_folder = rospy.get_param('~current_folder', self.init_current_folder)
-    #nepi_msg.publishMsgWarn(self,"Current Folder: " + str(current_folder))
-    #nepi_msg.publishMsgWarn(self,"Last Folder: " + str(self.last_folder))
+    #self.msg_if.pub_warn("Current Folder: " + str(current_folder))
+    #self.msg_if.pub_warn("Last Folder: " + str(self.last_folder))
     # Update folder info
     if current_folder != self.last_folder:
       update_status = True
       if os.path.exists(current_folder):
-        #nepi_msg.publishMsgWarn(self,"Current Folder Exists")
+        #self.msg_if.pub_warn("Current Folder Exists")
         current_paths = nepi_utils.get_folder_list(current_folder)
         current_folders = []
         for path in current_paths:
@@ -262,7 +271,7 @@ class NepiFilePubPcdApp(object):
           if folder[0] != ".":
             current_folders.append(folder)
         self.current_folders = sorted(current_folders)
-        #nepi_msg.publishMsgWarn(self,"Folders: " + str(self.current_folders))
+        #self.msg_if.pub_warn("Folders: " + str(self.current_folders))
         num_files = 0
         for f_type in self.SUPPORTED_FILE_TYPES:
           num_files = num_files + nepi_utils.get_file_count(current_folder,f_type)
@@ -279,8 +288,8 @@ class NepiFilePubPcdApp(object):
           [file_list, num_files] = nepi_utils.get_file_list(current_folder,f_type)
           self.file_list.extend(file_list)
           self.num_files += num_files
-          #nepi_msg.publishMsgWarn(self,"File Pub List: " + str(self.file_list))
-          #nepi_msg.publishMsgWarn(self,"File Pub Count: " + str(self.num_files))
+          #self.msg_if.pub_warn("File Pub List: " + str(self.file_list))
+          #self.msg_if.pub_warn("File Pub Count: " + str(self.num_files))
         if self.num_files > self.MAX_FILES: 
           self.available_files_list = file_list[:self.MAX_FILES] # Take first MAX_PUBS files
         else:
@@ -340,7 +349,7 @@ class NepiFilePubPcdApp(object):
     self.addAllFiles()
 
   def addAllFiles(self):
-    ##nepi_msg.publishMsgInfo(self,msg)
+    ##self.msg_if.pub_info(msg)
     sel_files = self.available_files_list
     if len(sel_files) > self.MAX_PUBS:
       sel_files = sel_files[:self.MAX_PUBS]
@@ -348,13 +357,13 @@ class NepiFilePubPcdApp(object):
     self.publish_status()
 
   def removeAllFilesCb(self,msg):
-    ##nepi_msg.publishMsgInfo(self,msg)
+    ##self.msg_if.pub_info(msg)
     nepi_ros.set_param(self,'~sel_files', [])
     self.publish_status()
 
   def addFileCb(self,msg):
     sel_files = rospy.get_param('~sel_files', self.init_sel_files)
-    ##nepi_msg.publishMsgInfo(self,msg)
+    ##self.msg_if.pub_info(msg)
     file_name = msg.data
     if len(sel_files) < self.MAX_PUBS:
       if file_name in self.available_files_list:
@@ -364,7 +373,7 @@ class NepiFilePubPcdApp(object):
 
   def removeFileCb(self,msg):
     sel_files = rospy.get_param('~sel_files', self.init_sel_files)
-    ##nepi_msg.publishMsgInfo(self,msg)
+    ##self.msg_if.pub_info(msg)
     file_name = msg.data
     if file_name in sel_files:
       sel_files.remove(file_name)
@@ -373,13 +382,13 @@ class NepiFilePubPcdApp(object):
 
 
   def pausePubCb(self,msg):
-    ##nepi_msg.publishMsgInfo(self,msg)
+    ##self.msg_if.pub_info(msg)
     self.paused = msg.data
     self.publish_status()
 
 
   def setDelayCb(self,msg):
-    ##nepi_msg.publishMsgInfo(self,msg)
+    ##self.msg_if.pub_info(msg)
     delay = msg.data
     if delay < self.MIN_DELAY:
       delay = self.MIN_DELAY
@@ -422,14 +431,14 @@ class NepiFilePubPcdApp(object):
             pcd_topic_name = pcd_topic_name.replace('.','')
             pcd_namespace = os.path.join(self.base_namespace,self.node_name,pcd_topic_name)
           except Exception as e:
-            nepi_msg.publishMsgWarn(self,"Failed to read pointcloud from file: " + pcd_file + " " + str(e))
+            self.msg_if.pub_warn("Failed to read pointcloud from file: " + pcd_file + " " + str(e))
           
           if pc2_msg != None:
             self.pcds_dict[pcd_name] = dict()
             self.pcds_dict[pcd_name]['file'] = pcd_file 
             self.pcds_dict[pcd_name]['topic'] = pcd_topic_name
             self.pcds_dict[pcd_name]['pc2_msg'] = pc2_msg
-            nepi_msg.publishMsgInfo(self,"creating publisher for file: " + pcd_file)
+            self.msg_if.pub_info("creating publisher for file: " + pcd_file)
             pcd_pub = rospy.Publisher(pcd_namespace, PointCloud2, queue_size=1)
             self.pcds_dict[pcd_name]['pcd_pub'] = pcd_pub
             self.current_file_list.append(pcd_name)
@@ -444,15 +453,15 @@ class NepiFilePubPcdApp(object):
                     tf_dict = yaml.safe_load(file)
               except Exception as e:
                 tf_dict = self.ZERO_TRANSFORM_DICT
-                nepi_msg.publishMsgWarn(self,"Failed to read transform from file: " + transform_file  + " " + str(e))
+                self.msg_if.pub_warn("Failed to read transform from file: " + transform_file  + " " + str(e))
             else:
               if create_tfs:
-                nepi_msg.publishMsgWarn(self,"No transform file found, so creating one")
+                self.msg_if.pub_warn("No transform file found, so creating one")
                 try:
                   with open(transform_file, 'w') as f:
                     yaml.dump(tf_dict, f)
                 except Exception as e:
-                  nepi_msg.publishMsgWarn(self,"Failed to write transform to file: " + transform_file + " " + str(e))
+                  self.msg_if.pub_warn("Failed to write transform to file: " + transform_file + " " + str(e))
             tf_msg = Frame3DTransform()
             tf_msg.translate_vector.x =  tf_dict['x_m']
             tf_msg.translate_vector.y  =  tf_dict['y_m']
@@ -477,7 +486,7 @@ class NepiFilePubPcdApp(object):
             for tf_sub in tf_subs:
               self.tf_subs_list.append(rospy.Publisher(tf_sub, Frame3DTransformUpdate, queue_size=1))
         else:
-          nepi_msg.publishMsgInfo(self,"Could not find file " + pcd_file)
+          self.msg_if.pub_info("Could not find file " + pcd_file)
         if len(self.pcds_dict.keys()) > 0:
           nepi_ros.sleep(1,10)
           self.running = True
@@ -532,7 +541,7 @@ class NepiFilePubPcdApp(object):
           if not nepi_ros.is_shutdown():
             pcd_pub.publish(pc2_msg)
         except Exception as e:
-          nepi_msg.publishMsgWarn(self,"Failed to publish pcd: " + pcd_name + " " + str(e))
+          self.msg_if.pub_warn("Failed to publish pcd: " + pcd_name + " " + str(e))
         if pub_tfs:
           for tf_sub in self.tf_subs_list:
             try:
@@ -542,7 +551,7 @@ class NepiFilePubPcdApp(object):
               if not nepi_ros.is_shutdown():
                 tf_sub.publish(tfu_msg)
             except Exception as e:
-              nepi_msg.publishMsgWarn(self,"Failed to publish pcd: " + pcd_name + " " + str(e))
+              self.msg_if.pub_warn("Failed to publish pcd: " + pcd_name + " " + str(e))
     running = rospy.get_param('~running',self.init_running)
     if running == True:
       delay = rospy.get_param('~delay',  self.init_delay)
@@ -560,7 +569,7 @@ class NepiFilePubPcdApp(object):
   # Node Cleanup Function
   
   def cleanup_actions(self):
-    nepi_msg.publishMsgInfo(self," Shutting down: Executing script cleanup actions")
+    self.msg_if.pub_info(" Shutting down: Executing script cleanup actions")
 
 
 #########################################
