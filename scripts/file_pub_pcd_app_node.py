@@ -19,7 +19,7 @@ import os
 # ROS namespace setup
 #NEPI_BASE_NAMESPACE = '/nepi/s2x/'
 #os.environ["ROS_NAMESPACE"] = NEPI_BASE_NAMESPACE[0:-1] # remove to run as automation script
-import rospy
+
 import time
 import sys
 import numpy as np
@@ -106,7 +106,7 @@ class NepiFilePubPcdApp(object):
   def __init__(self):
     #### APP NODE INIT SETUP ####
     nepi_ros.init_node(name= self.DEFAULT_NODE_NAME)
-   self.class_name = type(self).__name__
+    self.class_name = type(self).__name__
     self.base_namespace = nepi_ros.get_base_namespace()
     self.node_name = nepi_ros.get_node_name()
     self.node_namespace = nepi_ros.get_node_namespace()
@@ -120,39 +120,181 @@ class NepiFilePubPcdApp(object):
     # Init Param Server
     self.initCb(do_updates = False)
 
-    ## App Setup ########################################################
-    # Create class publishers
-    self.status_pub = rospy.Publisher("~status", FilePubPcdStatus, queue_size=1, latch=True)
+    ##############################
+    ### Setup Node
 
-    # General File Subscribers
-    rospy.Subscriber('~select_folder', String, self.selectFolderCb)
-    rospy.Subscriber('~home_folder', Empty, self.homeFolderCb)
-    rospy.Subscriber('~back_folder', Empty, self.backFolderCb)
+    # Configs Config Dict ####################
+    self.CFGS_DICT = {
+            'init_callback': self.initCb,
+            'reset_callback': self.resetCb,
+            'factory_reset_callback': self.factoryResetCb,
+            'init_configs': True,
+            'namespace': self.node_namespace
+    }
 
-    add_all_sub = rospy.Subscriber('~add_all_pcd_files', Empty, self.addAllFilesCb, queue_size = 10)
-    remove_all_sub = rospy.Subscriber('~remove_all_pcd_files', Empty, self.removeAllFilesCb, queue_size = 10)
-    add_file_sub = rospy.Subscriber('~add_pcd_file', String, self.addFileCb, queue_size = 10)
-    remove_file_sub = rospy.Subscriber('~remove_pcd_file', String, self.removeFileCb, queue_size = 10)
+    # Params Config Dict ####################
+    self.PARAMS_DICT = {
+        'current_folder': {
+            'namespace': self.node_namespace,
+            'factory_val': self.HOME_FOLDER
+        },
+        'sel_files': {
+            'namespace': self.node_namespace,
+            'factory_val': []
+        },
+        'delay': {
+            'namespace': self.node_namespace,
+            'factory_val': self.FACTORY_IMG_PUB_DELAY
+        },
+        'pub_transforms': {
+            'namespace': self.node_namespace,
+            'factory_val': False
+        },
+        'create_transforms': {
+            'namespace': self.node_namespace,
+            'factory_val': False
+        },
+        'running': {
+            'namespace': self.node_namespace,
+            'factory_val': False
+        }
+    }
+
+    # Publishers Config Dict ####################
+    self.PUBS_DICT = {
+        'status': {
+            'namespace': self.node_namespace,
+            'topic': 'status',
+            'msg': FilePubPcdStatus,
+            'qsize': 1,
+            'latch': True
+        }
+    }
+
+    # Subscribers Config Dict ####################
+    self.SUBS_DICT = {
+        'select_folder': {
+            'namespace': self.node_namespace,
+            'topic': 'select_folder',
+            'msg': String,
+            'qsize': 10,
+            'callback': self.selectFolderCb, 
+            'callback_args': ()
+        },
+        'home_folder': {
+            'namespace': self.node_namespace,
+            'topic': 'set_3d_frame',
+            'msg': Empty,
+            'qsize': 10,
+            'callback': self.backFolderCb, 
+            'callback_args': ()
+        },
+        'back_folder': {
+            'namespace': self.node_namespace,
+            'topic': 'back_folder',
+            'msg': Empty,
+            'qsize': 10,
+            'callback': self.backFolderCb, 
+            'callback_args': ()
+        },
+        'add_all_pcd_files': {
+            'namespace': self.node_namespace,
+            'topic': 'add_all_pcd_files',
+            'msg': Empty,
+            'qsize': 10,
+            'callback': self.addAllFilesCb, 
+            'callback_args': ()
+        },
+        'remove_all_pcd_files': {
+            'namespace': self.node_namespace,
+            'topic': 'remove_all_pcd_files',
+            'msg': Empty,
+            'qsize': 10,
+            'callback': self.removeAllFilesCb, 
+            'callback_args': ()
+        },
+        'add_pcd_file': {
+            'namespace': self.node_namespace,
+            'topic': 'add_pcd_file',
+            'msg': String,
+            'qsize': 10,
+            'callback': self.addFileCb, 
+            'callback_args': ()
+        },        
+        'remove_pcd_file': {
+            'namespace': self.node_namespace,
+            'topic': 'remove_pcd_file',
+            'msg': String,
+            'qsize': 1,
+            'callback': self.removeFileCb, 
+            'callback_args': ()
+        },
+        'set_delay': {
+            'namespace': self.node_namespace,
+            'topic': 'set_delay',
+            'msg': Float32,
+            'qsize': None,
+            'callback': self.setDelayCb, 
+            'callback_args': ()
+        },
+        'set_pub_transforms': {
+            'namespace': self.node_namespace,
+            'topic': 'set_pub_transforms',
+            'msg': Bool,
+            'qsize': None,
+            'callback': self.setPubTransformsCb, 
+            'callback_args': ()
+        },
+        'set_create_transforms': {
+            'namespace': self.node_namespace,
+            'topic': 'set_create_transforms',
+            'msg': Bool,
+            'qsize': None,
+            'callback': self.setCreateTransformsCb, 
+            'callback_args': ()
+        },
+        'start_pub': {
+            'namespace': self.node_namespace,
+            'topic': 'start_pub',
+            'msg': Empty,
+            'qsize': None,
+            'callback': self.startPubCb, 
+            'callback_args': ()
+        },
+        'stop_pub': {
+            'namespace': self.node_namespace,
+            'topic': 'stop_pub',
+            'msg': Empty,
+            'qsize': None,
+            'callback': self.stopPubCb, 
+            'callback_args': ()
+        },
+        'pause_pub': {
+            'namespace': self.node_namespace,
+            'topic': 'pause_pub',
+            'msg': Bool,
+            'qsize': None,
+            'callback': self.pausePubCb, 
+            'callback_args': ()
+        }
+    }
 
 
-    # Image Pub Scubscirbers and publishers
-    rospy.Subscriber('~set_delay', Float32, self.setDelayCb) 
-    rospy.Subscriber('~set_pub_transforms', Bool, self.setPubTransformsCb) 
-    rospy.Subscriber('~set_create_transforms', Bool, self.setCreateTransformsCb) 
-    rospy.Subscriber('~start_pub', Empty, self.startPubCb)
-    rospy.Subscriber('~stop_pub', Empty, self.stopPubCb)
+    # Create Node Class ####################
+    self.node_if = NodeClassIF(self,
+                    configs_dict = self.CFGS_DICT,
+                    params_dict = self.PARAMS_DICT,
+                    pubs_dict = self.PUBS_DICT,
+                    subs_dict = self.SUBS_DICT,
+                    log_class_name = True
+    )
 
-    rospy.Subscriber('~pause_pub', Bool, self.pausePubCb)
-
-    time.sleep(1)
-
-    self.save_cfg_if = SaveCfgIF(initCb=self.initCb, resetCb=self.resetCb,  factoryResetCb=self.factoryResetCb)
-    ready = self.save_cfg_if.wait_for_ready()
+    ready = self.node_if.wait_for_ready()
 
     ##############################
     self.initCb(do_updates = True)
     # Start updater process
-    rospy.Timer(rospy.Duration(self.UPDATER_DELAY_SEC), self.updaterCb)
+    self.nepi_ros.start_timer_process(self.UPDATER_DELAY_SEC, self.updaterCb)
 
 
     ##############################
@@ -160,23 +302,13 @@ class NepiFilePubPcdApp(object):
     self.msg_if.pub_info(" Initialization Complete")
     self.publish_status()
     # Spin forever (until object is detected)
-    rospy.spin()
+    self.nepi_ros.spin()
 
   #######################
   ### App Config Functions
 
 
   def factoryResetCb(self):
-    rospy.set_param('~current_folder', self.HOME_FOLDER)
-    rospy.set_param('~sel_files', [])
-
-    rospy.set_param('~delay', self.FACTORY_IMG_PUB_DELAY)
-
-    rospy.set_param('~pub_transforms',  False)
-    rospy.set_param('~create_transforms', False)
-
-    rospy.set_param('~running', False)
-
     self.publish_status()
 
 
@@ -185,30 +317,14 @@ class NepiFilePubPcdApp(object):
 
 
   def initCb(self,do_updates = False):
-    self.init_current_folder = rospy.get_param('~current_folder', self.HOME_FOLDER)
-
-    sel_files = rospy.get_param('~sel_files', ['All'])
+    sel_files = self.node_if.get_param('sel_files')
     if 'All' in sel_files:
       self.sel_all = True
       time.sleep(1)
-    self.init_sel_files = rospy.get_param('~sel_files', [])
-        
-
-    self.init_delay = rospy.get_param('~delay', self.FACTORY_IMG_PUB_DELAY)
-    self.init_running = rospy.get_param('~running', False)
-
-    self.init_pub_transforms = rospy.get_param('~pub_transforms', False )
-    self.init_create_transforms = rospy.get_param('~create_transforms', False  )
     if do_updates == True:
       self.resetCb(do_updates)
 
   def resetCb(self,do_updates = True):
-    rospy.set_param('~current_folder', self.init_current_folder)
-    rospy.set_param('~sel_files', self.init_sel_files)
-    rospy.set_param('~delay',  self.init_delay)
-    rospy.set_param('~pub_transforms',  self.init_pub_transforms)
-    rospy.set_param('~create_transforms',  self.init_create_transforms)
-    rospy.set_param('~running',self.init_running)
     self.publish_status()
 
 
@@ -219,7 +335,7 @@ class NepiFilePubPcdApp(object):
     status_msg = FilePubPcdStatus()
 
     status_msg.home_folder = self.HOME_FOLDER
-    current_folder = rospy.get_param('~current_folder', self.init_current_folder)
+    current_folder = self.node_if.get_param('current_folder')
     status_msg.current_folder = current_folder
     if current_folder == self.HOME_FOLDER:
       selected_folder = 'Home'
@@ -232,7 +348,7 @@ class NepiFilePubPcdApp(object):
 
     status_msg.max_files = self.MAX_FILES
     status_msg.available_files_list = self.available_files_list
-    status_msg.selected_files_list = rospy.get_param('~sel_files', self.init_sel_files)
+    status_msg.selected_files_list = self.node_if.get_param('sel_files')
 
     status_msg.current_file_list = self.current_file_list
     status_msg.current_topic_list = self.current_topic_list
@@ -240,14 +356,14 @@ class NepiFilePubPcdApp(object):
 
     status_msg.max_pubs = self.MAX_PUBS
     status_msg.min_max_delay = [self.MIN_DELAY, self.MAX_DELAY]
-    status_msg.set_delay = rospy.get_param('~delay',  self.init_delay)
+    status_msg.set_delay = self.node_if.get_param('delay')
 
-    status_msg.pub_transforms = rospy.get_param('~pub_transforms',  self.init_pub_transforms)
-    status_msg.create_transforms = rospy.get_param('~create_transforms',  self.init_create_transforms)
+    status_msg.pub_transforms = self.node_if.get_param('pub_transforms')
+    status_msg.create_transforms = self.node_if.get_param('create_transforms')
 
-    status_msg.running = rospy.get_param('~running',self.init_running)
+    status_msg.running = self.node_if.get_param('running')
 
-    self.status_pub.publish(status_msg)
+    self.status_pub.publish('status_pub', status_msg)
 
 
   #############################
@@ -256,7 +372,7 @@ class NepiFilePubPcdApp(object):
   def updaterCb(self,timer):
     update_status = False
     # Get settings from param server
-    current_folder = rospy.get_param('~current_folder', self.init_current_folder)
+    current_folder = self.node_if.get_param('current_folder')
     #self.msg_if.pub_warn("Current Folder: " + str(current_folder))
     #self.msg_if.pub_warn("Last Folder: " + str(self.last_folder))
     # Update folder info
@@ -298,10 +414,10 @@ class NepiFilePubPcdApp(object):
         for count, sel_file in enumerate(file_list):
           if sel_file in self.available_files_list and count < self.MAX_PUBS:
             update_sel_files.append(sel_file)
-        rospy.set_param('~sel_files', update_sel_files)
+        self.node_if.set_param('sel_files', update_sel_files)
         
     # Start publishing if needed
-    running = rospy.get_param('~running',self.init_running)
+    running = self.node_if.get_param('running')
     if running and self.running == False:
       self.startPub()
       update_status = True
@@ -310,28 +426,28 @@ class NepiFilePubPcdApp(object):
       self.publish_status()
 
   def selectFolderCb(self,msg):
-    current_folder = rospy.get_param('~current_folder',self.init_current_folder)
+    current_folder = self.node_if.get_param('current_folder')
     new_folder = msg.data
     new_path = os.path.join(current_folder,new_folder)
     if os.path.exists(new_path):
       self.last_folder = current_folder
-      rospy.set_param('~current_folder',new_path)
+      self.node_if.set_param('current_folder',new_path)
     self.sel_all = True
     self.publish_status()
 
 
   def homeFolderCb(self,msg):
-    rospy.set_param('~current_folder',self.HOME_FOLDER)
+    self.node_if.set_param('current_folder',self.HOME_FOLDER)
     self.sel_all = True
     self.publish_status()
 
   def backFolderCb(self,msg):
-    current_folder = rospy.get_param('~current_folder',self.init_current_folder)
+    current_folder = self.node_if.get_param('current_folder')
     if current_folder != self.HOME_FOLDER:
       new_folder = os.path.dirname(current_folder )
       if os.path.exists(new_folder):
         self.last_folder = current_folder
-        rospy.set_param('~current_folder',new_folder)
+        self.node_if.set_param('current_folder',new_folder)
         self.sel_all = True
     self.publish_status()
 
@@ -353,7 +469,7 @@ class NepiFilePubPcdApp(object):
     sel_files = self.available_files_list
     if len(sel_files) > self.MAX_PUBS:
       sel_files = sel_files[:self.MAX_PUBS]
-    rospy.set_param('~sel_files', sel_files)
+    self.node_if.set_param('sel_files', sel_files)
     self.publish_status()
 
   def removeAllFilesCb(self,msg):
@@ -362,22 +478,22 @@ class NepiFilePubPcdApp(object):
     self.publish_status()
 
   def addFileCb(self,msg):
-    sel_files = rospy.get_param('~sel_files', self.init_sel_files)
+    sel_files = self.node_if.get_param('sel_files')
     ##self.msg_if.pub_info(msg)
     file_name = msg.data
     if len(sel_files) < self.MAX_PUBS:
       if file_name in self.available_files_list:
         sel_files.append(file_name)
-    rospy.set_param('~sel_files', sel_files)
+    self.node_if.set_param('sel_files', sel_files)
     self.publish_status()
 
   def removeFileCb(self,msg):
-    sel_files = rospy.get_param('~sel_files', self.init_sel_files)
+    sel_files = self.node_if.get_param('sel_files')
     ##self.msg_if.pub_info(msg)
     file_name = msg.data
     if file_name in sel_files:
       sel_files.remove(file_name)
-    rospy.set_param('~sel_files', sel_files)
+    self.node_if.set_param('sel_files', sel_files)
     self.publish_status()
 
 
@@ -394,26 +510,26 @@ class NepiFilePubPcdApp(object):
       delay = self.MIN_DELAY
     if delay > self.MAX_DELAY:
       delay = self.MAX_DELAY
-    rospy.set_param('~delay',delay)
+    self.node_if.set_param('delay',delay)
     self.publish_status()
 
   def setPubTransformsCb(self,msg):
     val = msg.data
-    rospy.set_param('~pub_transforms',  val)
+    self.node_if.set_param('pub_transforms',  val)
     self.publish_status()
 
   def setCreateTransformsCb(self,msg):
     val = msg.data
-    rospy.set_param('~create_transforms',  val)
+    self.node_if.set_param('create_transforms',  val)
     self.publish_status()
 
   def startPubCb(self,msg):
     self.startPub()
 
   def startPub(self):
-    create_tfs = rospy.get_param('~create_transforms',  self.init_create_transforms)
-    current_folder = rospy.get_param('~current_folder',self.init_current_folder)
-    sel_files = rospy.get_param('~sel_files', self.init_sel_files)
+    create_tfs = self.node_if.get_param('create_transforms')
+    current_folder = self.node_if.get_param('current_folder')
+    sel_files = self.node_if.get_param('sel_files')
     if self.running == False:
       self.current_file_list = []
       self.current_topic_list = []
@@ -439,7 +555,7 @@ class NepiFilePubPcdApp(object):
             self.pcds_dict[pcd_name]['topic'] = pcd_topic_name
             self.pcds_dict[pcd_name]['pc2_msg'] = pc2_msg
             self.msg_if.pub_info("creating publisher for file: " + pcd_file)
-            pcd_pub = rospy.Publisher(pcd_namespace, PointCloud2, queue_size=1)
+            pcd_pub = self.nepi_ros.create_publisher(pcd_namespace, PointCloud2, queue_size=1)
             self.pcds_dict[pcd_name]['pcd_pub'] = pcd_pub
             self.current_file_list.append(pcd_name)
             self.current_topic_list.append(os.path.join(self.node_name,pcd_topic_name))
@@ -484,14 +600,14 @@ class NepiFilePubPcdApp(object):
             self.tf_subs_list = []
             tf_subs = nepi_ros.find_topics_by_msg('Frame3DTransformUpdate')
             for tf_sub in tf_subs:
-              self.tf_subs_list.append(rospy.Publisher(tf_sub, Frame3DTransformUpdate, queue_size=1))
+              self.tf_subs_list.append(self.nepi_ros.create_publisher(tf_sub, Frame3DTransformUpdate, queue_size=1))
         else:
           self.msg_if.pub_info("Could not find file " + pcd_file)
         if len(self.pcds_dict.keys()) > 0:
           nepi_ros.sleep(1,10)
           self.running = True
-          rospy.Timer(rospy.Duration(1), self.publishCb, oneshot = True)
-          rospy.set_param('~running',True)
+          self.nepi_ros.start_timer_process(1, self.publishCb, oneshot = True)
+          self.node_if.set_param('running',True)
 
 
     self.publish_status()
@@ -500,8 +616,8 @@ class NepiFilePubPcdApp(object):
     self.stopPub()
 
   def stopPub(self):
-    running = rospy.get_param('~running',self.init_running)
-    rospy.set_param('~running',False)
+    running = self.node_if.get_param('running')
+    self.node_if.set_param('running',False)
     time.sleep(1)
     for pcd in self.pcds_dict.keys():
       pcd_dict = self.pcds_dict[pcd]
@@ -524,13 +640,13 @@ class NepiFilePubPcdApp(object):
 
 
   def publishCb(self,timer):
-    pub_tfs = rospy.get_param('~pub_transforms',  self.init_pub_transforms)
-    running = rospy.get_param('~running',self.init_running)
+    pub_tfs = self.node_if.get_param('pub_transforms')
+    running = self.node_if.get_param('running')
     pcd_count = len(self.pcds_dict.keys())
     if running and self.paused == False:
       self.running = True
       for pcd_name in self.pcds_dict.keys():
-        ros_timestamp = rospy.Time.now()
+        ros_timestamp = self.nepi_ros.ros_time_now()
         pcd_pub = None
         try:
           pcd_pub = self.pcds_dict[pcd_name]['pcd_pub']
@@ -552,13 +668,13 @@ class NepiFilePubPcdApp(object):
                 tf_sub.publish(tfu_msg)
             except Exception as e:
               self.msg_if.pub_warn("Failed to publish pcd: " + pcd_name + " " + str(e))
-    running = rospy.get_param('~running',self.init_running)
+    running = self.node_if.get_param('running')
     if running == True:
-      delay = rospy.get_param('~delay',  self.init_delay)
+      delay = self.node_if.get_param('delay')
       if delay < 0:
         delay == 0
       nepi_ros.sleep(delay)
-      rospy.Timer(rospy.Duration(.001), self.publishCb, oneshot = True)
+      self.nepi_ros.start_timer_process(.001, self.publishCb, oneshot = True)
     else:
       self.stopPub()
 
