@@ -47,6 +47,7 @@ from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransformUpdate
 from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
 from nepi_api.system_if import SaveCfgIF
+from nepi_api.data_if import PointcloudIF
 
 
 
@@ -92,7 +93,7 @@ class NepiFilePubPcdApp(object):
 
   running = False
   file_count = 0
-  pcd_pub = None
+  pc_if = None
 
   pcds_dict = dict()
   tf_subs_list = []
@@ -536,10 +537,9 @@ class NepiFilePubPcdApp(object):
         pcd_file = os.path.join(current_folder,pcd_filename)
         if os.path.exists(pcd_file):
           pcd_name = os.path.basename(pcd_file)
-          pc2_msg = None
+          o3d_pc = None
           try:
             o3d_pc = o3d.io.read_point_cloud(pcd_file)
-            pc2_msg = nepi_pc.o3dpc_to_rospc(o3d_pc)
             pcd_topic_name = os.path.basename(pcd_file).split('.')[0]
             pcd_topic_name = pcd_topic_name.replace('-','_')
             pcd_topic_name = pcd_topic_name.replace('.','')
@@ -547,14 +547,14 @@ class NepiFilePubPcdApp(object):
           except Exception as e:
             self.msg_if.pub_warn("Failed to read pointcloud from file: " + pcd_file + " " + str(e))
           
-          if pc2_msg != None:
+          if o3d_pc != None:
             self.pcds_dict[pcd_name] = dict()
             self.pcds_dict[pcd_name]['file'] = pcd_file 
             self.pcds_dict[pcd_name]['topic'] = pcd_topic_name
-            self.pcds_dict[pcd_name]['pc2_msg'] = pc2_msg
+            self.pcds_dict[pcd_name]['o3d_pc'] = o3d_pc
             self.msg_if.pub_info("creating publisher for file: " + pcd_file)
-            pcd_pub = self.nepi_ros.create_publisher(pcd_namespace, PointCloud2, queue_size=1)
-            self.pcds_dict[pcd_name]['pcd_pub'] = pcd_pub
+            pc_if = PointcloudIF(namespace = self.node_namespace, topic = pcd_topic_name)
+            self.pcds_dict[pcd_name]['pc_if'] = pc_if
             self.current_file_list.append(pcd_name)
             self.current_topic_list.append(os.path.join(self.node_name,pcd_topic_name))
             # Process Transform Data
@@ -619,9 +619,9 @@ class NepiFilePubPcdApp(object):
     time.sleep(1)
     for pcd in self.pcds_dict.keys():
       pcd_dict = self.pcds_dict[pcd]
-      pcd_pub = pcd_dict['pcd_pub']
-      if pcd_pub != None:
-        pcd_pub.unregister()
+      pc_if = pcd_dict['pc_if']
+      if pc_if != None:
+        pc_if.unregister()
     # unsubscribe tranform subscribers
     for tf_sub in self.tf_subs_list:
       try:
@@ -645,15 +645,11 @@ class NepiFilePubPcdApp(object):
       self.running = True
       for pcd_name in self.pcds_dict.keys():
         ros_timestamp = self.nepi_ros.ros_time_now()
-        pcd_pub = None
+        pc_if = None
         try:
-          pcd_pub = self.pcds_dict[pcd_name]['pcd_pub']
-          pc2_msg = self.pcds_dict[pcd_name]['pc2_msg']
-          pc2_msg.header.stamp = ros_timestamp
-          pc2_msg.header.frame_id = 'base_link'
-
+          pc_if = self.pcds_dict[pcd_name]['pc_if']
           if not nepi_ros.is_shutdown():
-            pcd_pub.publish(pc2_msg)
+            pc_if.publish_o3d_pc(o3d_pc, timestamp = ros_timestamp, frame_id = 'base_link')
         except Exception as e:
           self.msg_if.pub_warn("Failed to publish pcd: " + pcd_name + " " + str(e))
         if pub_tfs:
