@@ -473,7 +473,7 @@ class NepiFilePubPcdApp(object):
 
   def removeAllFilesCb(self,msg):
     ##self.msg_if.pub_info(msg)
-    nepi_ros.set_param(self,'~sel_files', [])
+    self.node_if.set_param('sel_files', [])
     self.publish_status()
 
   def addFileCb(self,msg):
