@@ -46,10 +46,7 @@ from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransformUpdate
 
 from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
-<<<<<<< HEAD
-=======
 from nepi_api.system_if import SaveDataIF
->>>>>>> 9ba1d13
 from nepi_api.data_if import PointcloudIF
 
 
