@@ -16,10 +16,6 @@
 # - mailto:nepi@numurus.com
 #
 import os
-# ROS namespace setup
-#NEPI_BASE_NAMESPACE = '/nepi/s2x/'
-#os.environ["ROS_NAMESPACE"] = NEPI_BASE_NAMESPACE[0:-1] # remove to run as automation script
-
 import time
 import sys
 import numpy as np
@@ -160,7 +156,7 @@ class NepiFilePubPcdApp(object):
 
     # Publishers Config Dict ####################
     self.PUBS_DICT = {
-        'status': {
+        'status_pub': {
             'namespace': self.node_namespace,
             'topic': 'status',
             'msg': FilePubPcdStatus,
@@ -181,10 +177,10 @@ class NepiFilePubPcdApp(object):
         },
         'home_folder': {
             'namespace': self.node_namespace,
-            'topic': 'set_3d_frame',
+            'topic': 'home_folder',
             'msg': Empty,
             'qsize': 10,
-            'callback': self.backFolderCb, 
+            'callback': self.homeFolderCb, 
             'callback_args': ()
         },
         'back_folder': {
@@ -291,7 +287,7 @@ class NepiFilePubPcdApp(object):
     ##############################
     self.initCb(do_updates = True)
     # Start updater process
-    self.nepi_ros.start_timer_process(self.UPDATER_DELAY_SEC, self.updaterCb)
+    nepi_ros.start_timer_process(self.UPDATER_DELAY_SEC, self.updaterCb)
 
 
     ##############################
@@ -299,7 +295,7 @@ class NepiFilePubPcdApp(object):
     self.msg_if.pub_info(" Initialization Complete")
     self.publish_status()
     # Spin forever (until object is detected)
-    self.nepi_ros.spin()
+    nepi_ros.spin()
 
   #######################
   ### App Config Functions
@@ -314,12 +310,13 @@ class NepiFilePubPcdApp(object):
 
 
   def initCb(self,do_updates = False):
-    sel_files = self.node_if.get_param('sel_files')
-    if 'All' in sel_files:
-      self.sel_all = True
-      time.sleep(1)
-    if do_updates == True:
-      self.resetCb(do_updates)
+    if hasattr(self, 'node_if'): 
+      sel_files = self.node_if.get_param('sel_files')
+      if 'All' in sel_files:
+        self.sel_all = True
+        time.sleep(1)
+      if do_updates == True:
+        self.resetCb(do_updates)
 
   def resetCb(self,do_updates = True):
     self.publish_status()
@@ -360,7 +357,7 @@ class NepiFilePubPcdApp(object):
 
     status_msg.running = self.node_if.get_param('running')
 
-    self.status_pub.publish('status_pub', status_msg)
+    self.node_if.publish_pub('status_pub', status_msg)
 
 
   #############################
@@ -415,7 +412,7 @@ class NepiFilePubPcdApp(object):
         
     # Start publishing if needed
     running = self.node_if.get_param('running')
-    if running and self.running == False:
+    if running == False:
       self.startPub()
       update_status = True
     # Publish status if needed
@@ -527,7 +524,7 @@ class NepiFilePubPcdApp(object):
     create_tfs = self.node_if.get_param('create_transforms')
     current_folder = self.node_if.get_param('current_folder')
     sel_files = self.node_if.get_param('sel_files')
-    if self.running == False:
+    if self.node_if.get_param('running') == False:
       self.current_file_list = []
       self.current_topic_list = []
       self.pcds_dict = dict()
@@ -596,13 +593,13 @@ class NepiFilePubPcdApp(object):
             self.tf_subs_list = []
             tf_subs = nepi_ros.find_topics_by_msg('Frame3DTransformUpdate')
             for tf_sub in tf_subs:
-              self.tf_subs_list.append(self.nepi_ros.create_publisher(tf_sub, Frame3DTransformUpdate, queue_size=1))
+              self.tf_subs_list.append(nepi_ros.create_publisher(tf_sub, Frame3DTransformUpdate, queue_size=1))
         else:
           self.msg_if.pub_info("Could not find file " + pcd_file)
         if len(self.pcds_dict.keys()) > 0:
           nepi_ros.sleep(1,10)
-          self.running = True
-          self.nepi_ros.start_timer_process(1, self.publishCb, oneshot = True)
+          self.node_if.set_param('running', True)
+          nepi_ros.start_timer_process(1, self.publishCb, oneshot = True)
           self.node_if.set_param('running',True)
 
 
@@ -627,11 +624,11 @@ class NepiFilePubPcdApp(object):
       except:
         pass
     time.sleep(1)
-    pcds_dict = dict()
-    tf_subs_list = []
+    self.pcds_dict = dict()
+    self.tf_subs_list = []
     self.current_file_list = []
     self.current_topic_list = []
-    self.running = False
+    self.node_if.set_param('running', False)
     self.publish_status()
 
 
@@ -640,13 +637,14 @@ class NepiFilePubPcdApp(object):
     running = self.node_if.get_param('running')
     pcd_count = len(self.pcds_dict.keys())
     if running and self.paused == False:
-      self.running = True
+      self.node_if.set_param('running', True)
       for pcd_name in self.pcds_dict.keys():
-        ros_timestamp = self.nepi_ros.ros_time_now()
+        ros_timestamp = nepi_ros.ros_time_now()
         pc_if = None
         try:
           pc_if = self.pcds_dict[pcd_name]['pc_if']
           if not nepi_ros.is_shutdown():
+            o3d_pc = self.pcds_dict[pcd_name]['o3d_pc']
             pc_if.publish_o3d_pc(o3d_pc, timestamp = ros_timestamp, frame_id = 'base_link')
         except Exception as e:
           self.msg_if.pub_warn("Failed to publish pcd: " + pcd_name + " " + str(e))
@@ -666,13 +664,10 @@ class NepiFilePubPcdApp(object):
       if delay < 0:
         delay == 0
       nepi_ros.sleep(delay)
-      self.nepi_ros.start_timer_process(.001, self.publishCb, oneshot = True)
+      nepi_ros.start_timer_process(.001, self.publishCb, oneshot = True)
     else:
       self.stopPub()
 
-
-               
-    
   #######################
   # Node Cleanup Function
   
