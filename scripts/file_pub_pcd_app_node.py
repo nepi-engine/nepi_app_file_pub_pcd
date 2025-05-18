@@ -16,10 +16,6 @@
 # - mailto:nepi@numurus.com
 #
 import os
-# ROS namespace setup
-#NEPI_BASE_NAMESPACE = '/nepi/s2x/'
-#os.environ["ROS_NAMESPACE"] = NEPI_BASE_NAMESPACE[0:-1] # remove to run as automation script
-
 import time
 import sys
 import numpy as np
@@ -46,7 +42,6 @@ from nepi_ros_interfaces.msg import Frame3DTransform, Frame3DTransformUpdate
 
 from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
-from nepi_api.system_if import SaveDataIF
 from nepi_api.data_if import PointcloudIF
 
 
@@ -674,9 +669,6 @@ class NepiFilePubPcdApp(object):
     else:
       self.stopPub()
 
-
-               
-    
   #######################
   # Node Cleanup Function
   
