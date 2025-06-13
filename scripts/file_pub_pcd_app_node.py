@@ -593,7 +593,7 @@ class NepiFilePubPcdApp(object):
             self.tf_subs_list = []
             tf_subs = nepi_sdk.find_topics_by_msg('Frame3DTransformUpdate')
             for tf_sub in tf_subs:
-              self.tf_subs_list.append(nepi_sdk.create_publisher(tf_sub, Frame3DTransformUpdate, _queue_size=1))
+              self.tf_subs_list.append(nepi_sdk.create_publisher(tf_sub, Frame3DTransformUpdate, queue_size=1))
         else:
           self.msg_if.pub_info("Could not find file " + pcd_file)
         if len(self.pcds_dict.keys()) > 0:
