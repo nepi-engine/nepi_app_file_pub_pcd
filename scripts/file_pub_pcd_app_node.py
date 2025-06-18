@@ -37,7 +37,7 @@ from std_msgs.msg import UInt8, Int32, Float32, Empty, String, Bool, Header
 
 from sensor_msgs.msg import PointCloud2
 
-from nepi_sdk_interfaces.msg import Frame3DTransform, Frame3DTransformUpdate
+from nepi_interfaces.msg import Frame3DTransform, Frame3DTransformUpdate
 
 
 from nepi_api.node_if import NodeClassIF
