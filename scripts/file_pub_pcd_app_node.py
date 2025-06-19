@@ -584,7 +584,7 @@ class NepiFilePubPcdApp(object):
             tfu_msg.topic_namespace = pcd_namespace
             tfu_msg.transform = tfu_msg
             self.pcds_dict[pcd_name]['tfu_msg'] = tfu_msg
-            # Find tranform subscribers
+            # Find transform subscribers
             for tf_sub in self.tf_subs_list:
               try:
                 tf_sub.unregister()
@@ -617,7 +617,7 @@ class NepiFilePubPcdApp(object):
       pc_if = pcd_dict['pc_if']
       if pc_if != None:
         pc_if.unregister()
-    # unsubscribe tranform subscribers
+    # unsubscribe transform subscribers
     for tf_sub in self.tf_subs_list:
       try:
         tf_sub.unregister()
