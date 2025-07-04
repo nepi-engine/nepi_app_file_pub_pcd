@@ -76,6 +76,8 @@ class NepiFilePubPcdApp(object):
     'heading_deg': 0,
   }
   
+  node_if = None
+
   paused = False
 
   last_folder = ""
@@ -357,7 +359,8 @@ class NepiFilePubPcdApp(object):
 
     status_msg.running = self.node_if.get_param('running')
 
-    self.node_if.publish_pub('status_pub', status_msg)
+    if self.node_if is not None:
+      self.node_if.publish_pub('status_pub', status_msg)
 
 
   #############################
