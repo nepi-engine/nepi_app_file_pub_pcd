@@ -96,6 +96,16 @@ class NepiFilePubPcdApp(object):
   tf_subs_list = []
 
 
+
+  current_folder = self.HOME_FOLDER
+  sel_files = []
+  delay = self.FACTORY_IMG_PUB_DELAY
+  pub_transforms = False
+  create_transforms = False
+  running = False
+
+    
+
   #######################
   ### Node Initialization
   DEFAULT_NODE_NAME = "app_file_pub_pcd" # Can be overwitten by luanch command
@@ -303,26 +313,28 @@ class NepiFilePubPcdApp(object):
   ### App Config Functions
 
 
-  def factoryResetCb(self):
-    self.publish_status()
+  def initCb(self,do_updates = False):
+      if self.node_if is not None:
+
+        pass
+
+      if do_updates == True:
+        pass
+      self.publish_status()
+
+  def resetCb(self,do_updates = True):
+      if do_updates:
+          pass
+      self.initCb
+
+  def factoryResetCb(self,do_updates = True):
+      if do_updates:
+          pass
+      self.initCb
 
 
   def setCurrentAsDefault(self):
     self.initCb(do_updates = False)
-
-
-  def initCb(self,do_updates = False):
-    if hasattr(self, 'node_if'): 
-      sel_files = self.node_if.get_param('sel_files')
-      if 'All' in sel_files:
-        self.sel_all = True
-        time.sleep(1)
-      if do_updates == True:
-        self.resetCb(do_updates)
-
-  def resetCb(self,do_updates = True):
-    self.publish_status()
-
 
 
   ###################
