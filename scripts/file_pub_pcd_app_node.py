@@ -325,12 +325,12 @@ class NepiFilePubPcdApp(object):
   def resetCb(self,do_updates = True):
       if do_updates:
           pass
-      self.initCb
+      self.initCb(do_updates = do_updates)
 
   def factoryResetCb(self,do_updates = True):
       if do_updates:
           pass
-      self.initCb
+     self.initCb(do_updates = do_updates)
 
 
   def setCurrentAsDefault(self):
