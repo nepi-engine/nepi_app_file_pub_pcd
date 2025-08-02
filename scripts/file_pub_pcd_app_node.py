@@ -315,7 +315,10 @@ class NepiFilePubPcdApp(object):
 
   def initCb(self,do_updates = False):
       if self.node_if is not None:
-
+        #current_folder = self.node_if.get_param('current_folder')
+        #if os.path.exists(current_folder) == False:
+        #  current_folder = self.HOME_FOLDER
+        #self.current_folder = current_folder
         pass
 
       if do_updates == True:
@@ -393,6 +396,7 @@ class NepiFilePubPcdApp(object):
     #self.msg_if.pub_warn("Last Folder: " + str(self.last_folder))
     # Update folder info
     if current_folder != self.last_folder:
+      self.stopPub()
       update_status = True
       if os.path.exists(current_folder):
         #self.msg_if.pub_warn("Current Folder Exists")

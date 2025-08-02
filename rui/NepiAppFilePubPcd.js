@@ -30,6 +30,9 @@ import Styles from "./Styles"
 import BooleanIndicator from "./BooleanIndicator"
 
 
+import ImageViewer from "./Nepi_IF_ImageViewer"
+import NepiIFConfig from "./Nepi_IF_Config"
+
 import { onEnterSendFloatValue,  onUpdateSetStateValue} from "./Utilities"
 
 
@@ -454,34 +457,10 @@ class FilePubPcdApp extends Component {
 
         <div hidden={!this.state.connected}>
 
-        <Columns>
-        <Column>
-
-          <ButtonMenu>
-          <Button onClick={() => sendTriggerMsg( appNamespace + "/reset_app")}>{"Reset App"}</Button>
-          </ButtonMenu>
-
-        </Column>
-        <Column>
-
-          <ButtonMenu>
-          <Button onClick={() => sendTriggerMsg(appNamespace + "/reset_config")}>{"Reset Config"}</Button>
-          </ButtonMenu>
-
-        </Column>
-        <Column>
-
-          <ButtonMenu>
-          <Button onClick={() => sendTriggerMsg(appNamespace + "/save_config")}>{"Save Config"}</Button>
-          </ButtonMenu>
-
-
-
-
-
-        </Column>
-        </Columns>
-      
+        <NepiIFConfig
+                        namespace={appNamespace}
+                        title={"Nepi_IF_Conig"}
+        />
        </div>
 
 
